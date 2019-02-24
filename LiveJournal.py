@@ -114,7 +114,7 @@ class LiveJournal:
         May be slower, but for now more polite."""
 
         try:
-            data = requests.get(f'http://www.livejournal.com/misc/fdata.bml?user={self.nick}',
+            data = requests.get(f'https://www.livejournal.com/misc/fdata.bml?comm=1&user={self.nick}',
                                 params={'email': 'ctac1995@gmail.com'})
             with open(os.path.join('cache', f'{self.nick}', f'{self.nick}_connections.txt'),
                       'w', encoding='utf-8') as f:
@@ -129,7 +129,7 @@ class LiveJournal:
         try:  # if it's not the first call to user's data, we should use cache
             with open(os.path.join('cache', f'{self.nick}', f'{self.nick}_connections.txt'),
                       encoding='utf-8') as f:
-                data = f.read()
+                data = f.readlines()
         except FileNotFoundError:
             self._gather_connections()
             self.get_connections()
@@ -190,3 +190,4 @@ if __name__ == "__main__":
     print(objects)
     print(objects[0].messages)
     print(objects[1].interests)
+    print(objects[2].friends)
