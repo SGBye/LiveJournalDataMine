@@ -1,4 +1,8 @@
 import re
+from datetime import datetime
+import json
+
+import networkx as nx
 import requests
 import xml.etree.ElementTree as ET
 from urllib.parse import unquote
@@ -8,6 +12,8 @@ from bs4 import BeautifulSoup
 from iso3166 import countries
 
 from settings import *
+
+import matplotlib.pyplot as plt
 
 
 class LiveJournal:
@@ -29,6 +35,7 @@ class LiveJournal:
         self.messages = []
         self.title = None
         self.subtitle = None
+        self.picture = None
         # add other features here
 
         self.get_personal_info()
@@ -59,13 +66,14 @@ class LiveJournal:
         try:
             data = requests.get(f'https://{self.nick}.livejournal.com/data/foaf',
                                 params={'email': 'ctac1995@gmail.com'})
+        except requests.exceptions.RequestException:
+            raise requests.exceptions.ConnectionError
+        else:
             os.makedirs(os.path.dirname(filename), exist_ok=True)
             with open(os.path.join('cache', f'{self.nick}', f'{self.nick}_profile.xml'), 'w',
                       encoding='utf-8') as f:
                 f.write(data.text)
-        except requests.exceptions.RequestException as e:
-            print(e)
-            raise SystemExit("There's been a mistake")
+
 
     def get_personal_info(self):
         """process the xml downloaded from the internet or from local cache"""
@@ -73,10 +81,14 @@ class LiveJournal:
         try:
             tree = ET.parse(os.path.join('cache', f'{self.nick}', f'{self.nick}_profile.xml'))
         except FileNotFoundError:
-            self._gather_personal_info()
-            self.get_personal_info()
+            try:
+                self._gather_personal_info()
+            except requests.exceptions.ConnectionError:
+                return
+            else:
+                self.get_personal_info()
         except ET.ParseError:
-            raise SystemExit("This user has either been deleted or never created.")
+            print('This user has either been deleted or never created.')
         else:
             root = tree.getroot()[0]
 
@@ -86,6 +98,10 @@ class LiveJournal:
                     self.name = i.text
                 elif 'journaltitle' in i.tag:
                     self.title = i.text
+                elif 'img' in i.tag:
+                    for key in i.attrib:
+                        if 'resource' in key:
+                            self.picture = i.attrib[key]
                 elif 'journalsubtitle' in i.tag:
                     self.subtitle = i.text
                 elif 'dateOfBirth' in i.tag:
@@ -97,7 +113,10 @@ class LiveJournal:
                 elif 'country' in i.tag:
                     for key in i.attrib:
                         if 'title' in key:
-                            self.country = countries.get(i.attrib[key]).name
+                            try:
+                                self.country = countries.get(i.attrib[key]).name
+                            except KeyError:
+                                self.country = i.attrib[key]
                 elif 'school' in i.tag:
                     for key in i.attrib:
                         if 'title' in key:
@@ -116,12 +135,13 @@ class LiveJournal:
         try:
             data = requests.get(f'https://www.livejournal.com/misc/fdata.bml?comm=1&user={self.nick}',
                                 params={'email': 'ctac1995@gmail.com'})
+        except requests.exceptions.RequestException:
+            print(os.path.join('cache', f'{self.nick}', f'{self.nick}_connections.txt'))
+            raise requests.exceptions.ConnectionError
+        else:
             with open(os.path.join('cache', f'{self.nick}', f'{self.nick}_connections.txt'),
                       'w', encoding='utf-8') as f:
                 f.write(data.text)
-        except requests.exceptions.RequestException as e:
-            print(e)
-            raise SystemExit("There has been a mistake")
 
     def get_connections(self):
         """process the html downloaded from the internet or from local cache"""
@@ -131,8 +151,12 @@ class LiveJournal:
                       encoding='utf-8') as f:
                 data = f.readlines()
         except FileNotFoundError:
-            self._gather_connections()
-            self.get_connections()
+            try:
+                self._gather_connections()
+            except requests.exceptions.ConnectionError:
+                return
+            else:
+                self.get_connections()
         else:
             for line in data:
                 if len(line) > 2:
@@ -153,11 +177,11 @@ class LiveJournal:
         try:
             data = requests.get(f'https://{self.nick}.livejournal.com/data/atom',
                                 params={'email': 'ctac1995@gmail.com'})
-            with open(os.path.join('cache', f'{self.nick}', f'{self.nick}_messages.html'), 'w', encoding='utf-8') as f:
-                f.write(data.text)
         except requests.exceptions.RequestException as e:
-            print(e)
-            raise SystemExit("There's been a mistake")
+            raise requests.exceptions.ConnectionError
+        else:
+            with open(os.path.join('cache', f'{self.nick}', f'{self.nick}_messages.html'), 'w', encoding='utf-8') as f:
+                    f.write(data.text)
 
     def get_messages(self):
         """process the html downloaded from the internet or from local cache"""
@@ -166,8 +190,12 @@ class LiveJournal:
             with open(os.path.join('cache', f'{self.nick}', f'{self.nick}_messages.html'), encoding='utf-8') as f:
                 html = f.read()
         except FileNotFoundError:
-            self._gather_messages()
-            self.get_messages()
+            try:
+                self._gather_messages()
+            except requests.exceptions.ConnectionError:
+                return
+            else:
+                self.get_messages()
         else:
             soup = BeautifulSoup(html, 'html.parser')
             for tag in soup.find_all('content', type='html'):
@@ -180,14 +208,31 @@ class LiveJournal:
         return cls(nick)
 
 
+
 if __name__ == "__main__":
-    needed_users = ['babs71', 'seminarist', 'nomen-nescio']
-    objects = []
 
-    for nick in needed_users:
-        objects.append(LiveJournal.object(nick))
+    user = 'babs71'
 
-    print(objects)
-    print(objects[0].messages)
-    print(objects[1].interests)
-    print(objects[2].friends)
+    babs71 = LiveJournal.object(user)
+
+    result = {fr: [] for fr in babs71.friends}
+    print(result)
+    count = 0
+    length = len(babs71.friends)
+    for i in babs71.friends:
+        count += 1
+        print(f'***User number {count} out of {length}, processing {i}...')
+        try:
+            temp_object = LiveJournal.object(i)
+        except FileNotFoundError:
+            print("File not found")
+            continue
+        for friend in temp_object.friends:
+            if friend in babs71.friends:
+                result[i].append(friend)
+
+    with open('fof_babs71.json', 'w') as f:
+        json.dump(result, f)
+    print(result)
+
+
