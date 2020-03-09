@@ -1,4 +1,7 @@
+import string
+
 import peewee
+from nltk import word_tokenize, sent_tokenize
 from playhouse.postgres_ext import ArrayField
 
 pg_db = peewee.PostgresqlDatabase('diplom_data', user='test_stas', password='12345',
@@ -39,33 +42,33 @@ class Message(peewee.Model):
     def symbols_count(self):
         return len(self.message)
 
-    # @staticmethod
-    # def tokenize_words(message):
-    #     return [i for i in word_tokenize(message) if i not in string.punctuation]
-    #
-    # @property
-    # def words_count(self):
-    #     return len(self.message.tokenize_words())
-    #
-    # @property
-    # def sentences_count(self):
-    #     return len(sent_tokenize(self.message, 'russian'))
-    #
-    # @property
-    # def comas(self):
-    #     return self.message.count(",")
-    #
-    # @property
-    # def tires(self):
-    #     return self.message.count("-") + self.message.count("—")
-    #
-    # @property
-    # def first_sentence(self):
-    #     return sent_tokenize(self.message, 'russian')[0]
-    #
-    # @property
-    # def last_sentence(self):
-    #     return sent_tokenize(self.message, 'russian')[-1]
+    @staticmethod
+    def tokenize_words(message):
+        return [i for i in word_tokenize(message) if i not in string.punctuation]
+
+    @property
+    def words_count(self):
+        return len(self.message.tokenize_words())
+
+    @property
+    def sentences_count(self):
+        return len(sent_tokenize(self.message, 'russian'))
+
+    @property
+    def comas(self):
+        return self.message.count(",")
+
+    @property
+    def tires(self):
+        return self.message.count("-") + self.message.count("—")
+
+    @property
+    def first_sentence(self):
+        return sent_tokenize(self.message, 'russian')[0]
+
+    @property
+    def last_sentence(self):
+        return sent_tokenize(self.message, 'russian')[-1]
 
 
 pg_db.create_tables([User, Message])

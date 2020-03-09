@@ -1,21 +1,20 @@
 import logging
+import os
 import re
 import string
 import time
-
-import requests
 import xml.etree.ElementTree as ET
 from urllib.parse import unquote
-import os
 
+import requests
 from bs4 import BeautifulSoup
 from iso3166 import countries
 from nltk.tokenize import sent_tokenize
 from nltk.tokenize import word_tokenize
 from peewee import IntegrityError
 
-from settings import *
 from models import User, Message, pg_db
+from settings import *
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +51,7 @@ class LiveJournal:
         return f'Ник: {self.nick}, имя: {self.name}, дата рождения: {self.birthdate}'
 
     def __repr__(self):
-        return f'Ник: {self.nick}, имя: {self.name}, дата рождения: {self.birthdate}'
+        return self.__str__
 
     @property
     def year_of_birth(self):
@@ -305,5 +304,5 @@ if __name__ == "__main__":
         if not friend.startswith('_'):
             print(f"Processing {count} out of {len(babs.friends)}...")
             LiveJournal(friend)
-            count+=1
+            count += 1
 
