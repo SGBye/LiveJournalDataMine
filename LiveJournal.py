@@ -12,8 +12,10 @@ from bs4 import BeautifulSoup
 from iso3166 import countries
 from nltk.tokenize import sent_tokenize
 from nltk.tokenize import word_tokenize
+from peewee import IntegrityError
 
 from settings import *
+from models import User, Message, pg_db
 
 log = logging.getLogger(__name__)
 
@@ -27,9 +29,9 @@ class LiveJournal:
         self.nick = nick
         self.name = None
         self.friends = []  # done
-        self.frind_of = []  # done
-        self.comm_reads = []  # done
-        self.comm_in = []  # done
+        self.friend_of = []  # done
+        self.conn_reads = []  # done
+        self.conn_in = []  # done
         self.birthdate = None  # done
         self.city = None  # done
         self.country = None  # done
@@ -98,7 +100,7 @@ class LiveJournal:
             # retries logic
             for attempt in range(MAX_RETRIES):
                 try:
-                    tree = self._gather_personal_info()
+                    tree = ET.ElementTree(ET.fromstring(self._gather_personal_info()))
                 except requests.exceptions.RequestException:
                     time.sleep(1)
                     continue
@@ -151,11 +153,11 @@ class LiveJournal:
 
     def _gather_connections(self):
         """
-        first download the profile-communities connections data from the internet.
+        first download the profile-connunities connections data from the internet.
         May be slower, but for now more polite.
         """
-        data = requests.get(f'https://www.livejournal.com/misc/fdata.bml?comm=1&user={self.nick}',
-                                params={'email': 'ctac1995@gmail.com'})
+        data = requests.get(f'https://www.livejournal.com/misc/fdata.bml?conn=1&user={self.nick}',
+                            params={'email': 'ctac1995@gmail.com'})
         with open(os.path.join('cache', f'{self.nick}', f'{self.nick}_connections.txt'), 'w', encoding='utf-8') as f:
             f.write(data.text)
         return data.text
@@ -189,11 +191,11 @@ class LiveJournal:
                     if line.startswith('P>'):
                         self.friends.append(line.split()[1])
                     elif line.startswith("P<"):
-                        self.frind_of.append(line.split()[1])
+                        self.friend_of.append(line.split()[1])
                     elif line.startswith("C>"):
-                        self.comm_reads.append(line.split()[1])
+                        self.conn_reads.append(line.split()[1])
                     else:
-                        self.comm_in.append(line.split()[1])
+                        self.conn_in.append(line.split()[1])
 
     def _gather_messages(self):
         """
@@ -201,7 +203,7 @@ class LiveJournal:
         May be slower, but for now more polite.
         """
         data = requests.get(f'https://{self.nick}.livejournal.com/data/atom',
-                                params={'email': 'ctac1995@gmail.com'})
+                            params={'email': 'ctac1995@gmail.com'})
         with open(os.path.join('cache', f'{self.nick}', f'{self.nick}_messages.html'), 'w', encoding='utf-8') as f:
             f.write(data.text)
         return data.text
@@ -229,6 +231,12 @@ class LiveJournal:
                 return
 
         soup = BeautifulSoup(html, 'html.parser')
+        try:
+            a_user = User.create(**self.__dict__)
+        except IntegrityError:
+            print("exists")
+            pg_db.rollback()
+            return
         for tag in soup.find_all('entry'):
             if len(self.messages) < SENTENCES_TO_SHOW:
                 message = ''
@@ -236,10 +244,9 @@ class LiveJournal:
                     message = self.clean_tags(tag.content.text)
                 elif tag.summary:
                     message = self.clean_tags(tag.summary.text)
-
-                self.messages.append(LiveJournalMessage(message=message, author=self.nick,
-                                                        link=tag.link['href'],
-                                                        date=tag.published.text.split('T')[0]))
+                Message.create(message=message, author=a_user,
+                               link=tag.link['href'],
+                               date=tag.published.text.split('T')[0])
 
 
 class LiveJournalMessage:
@@ -292,5 +299,11 @@ class LiveJournalMessage:
 if __name__ == "__main__":
     needed_users = ['babs71', 'seminarist', 'nomen-nescio']
     objects = []
-    count = 0
+    count = 1
     babs = LiveJournal('babs71')
+    for friend in babs.friends:
+        if not friend.startswith('_'):
+            print(f"Processing {count} out of {len(babs.friends)}...")
+            LiveJournal(friend)
+            count+=1
+
