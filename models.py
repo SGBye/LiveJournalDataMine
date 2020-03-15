@@ -4,7 +4,7 @@ import peewee
 from nltk import word_tokenize, sent_tokenize
 from playhouse.postgres_ext import ArrayField
 
-pg_db = peewee.PostgresqlDatabase('diplom_data', user='test_stas', password='12345',
+pg_db = peewee.PostgresqlDatabase('diplom_data', user='stas_test', password='12345',
                                   host='0.0.0.0', port=5432)
 
 
