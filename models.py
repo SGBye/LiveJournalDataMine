@@ -13,8 +13,6 @@ class User(peewee.Model):
     name = peewee.TextField(null=True)
     friends = ArrayField(peewee.TextField, null=True)
     friend_of = ArrayField(peewee.TextField, null=True)
-    conn_reads = ArrayField(peewee.TextField, null=True)
-    conn_in = ArrayField(peewee.TextField, null=True)
     birthdate = peewee.TextField(null=True)
     city = peewee.TextField(null=True)
     country = peewee.TextField(null=True)
