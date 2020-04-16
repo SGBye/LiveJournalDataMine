@@ -2,10 +2,11 @@ import string
 
 import peewee
 from nltk import word_tokenize, sent_tokenize
+# from playhouse.migrate import PostgresqlMigrator, migrate
 from playhouse.postgres_ext import ArrayField
 
 pg_db = peewee.PostgresqlDatabase('diplom_data', user='stas_test', password='12345',
-                                  host='0.0.0.0', port=5432)
+                                  host='0.0.0.0', port=5432, autocommit=True, autorollback=True)
 
 
 class User(peewee.Model):
@@ -22,6 +23,9 @@ class User(peewee.Model):
     title = peewee.TextField(null=True)
     subtitle = peewee.TextField(null=True)
     picture = peewee.TextField(null=True)
+    source = peewee.CharField(max_length=100)
+    sex = peewee.CharField(max_length=10, null=True)
+    additional = peewee.TextField(null=True)
 
     class Meta:
         database = pg_db
@@ -70,3 +74,9 @@ class Message(peewee.Model):
 
 
 pg_db.create_tables([User, Message])
+# migrator = PostgresqlMigrator(pg_db)
+#
+# migrate(
+#     migrator.add_column('user', 'sex', peewee.CharField(max_length=10, null=True)),
+#     migrator.add_column('user', 'additional', peewee.TextField(null=True)),
+# )

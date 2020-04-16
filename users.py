@@ -8,6 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 from iso3166 import countries
 
+from exceptions import NotFetchedException
 from livejournal_api import LiveJournalApi
 from models import User, Message
 from settings import MAX_RETRIES, SENTENCES_TO_SHOW
@@ -63,13 +64,18 @@ class LiveJournalUser(BaseUser):
 
     def fill_the_data(self):
         filename = os.path.join('cache', f'{self.nick}')
-        os.makedirs('/' + filename, exist_ok=True)
-        self.process_personal_info()
-
-        self.process_connections()
+        os.makedirs(filename, exist_ok=True)
+        try:
+            self.process_personal_info()
+            self.process_connections()
+        except NotFetchedException:
+            return
 
         db_user = self.db_create()
-        messages = self.process_messages()
+        try:
+            messages = self.process_messages()
+        except NotFetchedException:
+            return
 
         prepared_data = [
             (db_user, message.message, message.date, message.link) for message in messages
@@ -94,7 +100,8 @@ class LiveJournalUser(BaseUser):
                     break
             # if we failed all attempts, just forget about this guy
             else:
-                return
+                raise NotFetchedException
+
         except ET.ParseError:
             log.debug('This user has either been deleted or never created: %s', self.nick)
             return
@@ -161,7 +168,7 @@ class LiveJournalUser(BaseUser):
                     break
             # failing all attempts makes us forget the guy
             else:
-                return
+                raise NotFetchedException
 
         for line in data:
             if len(line) > 2:  # it's in the following format "C< username"
@@ -191,7 +198,7 @@ class LiveJournalUser(BaseUser):
                     break
             # failing all attempts makes us forget the guy
             else:
-                return
+                raise NotFetchedException
 
         soup = BeautifulSoup(html, 'html.parser')
         messages = []
@@ -208,7 +215,8 @@ class LiveJournalUser(BaseUser):
         return messages
 
     def db_create(self):
-        a_user, created = User.get_or_create(**self.__dict__)
+        a_user, created = User.get_or_create(nick=self.nick)
         if created:
-            log.debug("User already existed, %s", self.nick)
+            q = User.update(self.__dict__).where(User.nick == self.nick)
+            q.execute()
         return a_user

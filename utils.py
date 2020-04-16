@@ -27,3 +27,9 @@ def clean_tags(raw_html):
     to_delete = re.compile("&\w+;")
     cleantext = re.sub(to_delete, '', change_quoes)
     return cleantext
+
+
+def batch(iterable, n=1):
+    l = len(iterable)
+    for ndx in range(0, l, n):
+        yield iterable[ndx:min(ndx + n, l)]
