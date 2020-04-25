@@ -80,7 +80,7 @@ class VKApi:
         method = 'users.search'
 
         allowed_query_params = ['city', 'country', 'age_from', 'age_to', 'fields', 'count', 'sex',
-                                'birth_day', 'birth_month', 'birth_year', 'group_id']
+                                'birth_day', 'birth_month', 'birth_year', 'group_id', 'sort']
         for i in filter_params.keys():
             if i not in allowed_query_params:
                 print(i)
@@ -94,14 +94,17 @@ class VKApi:
     def get_users_messages(self, ids, token):
         method = "execute"
         response = []
+        full = len(ids) // 25
+        count = 1
         for pack in batch(list(ids), 25):
+            print(f"***Batch {count} out of {full}...")
             length = len(pack)
             vk_code = f"""
             var response = [];
             var ids = {pack};
             var count = 0;
             while (count != {length - 1}) {{
-                response.push( {{"id": ids[count], "messages": API.wall.get( {{"owner_id": ids[count], "count": 10}} ) }});
+                response.push( {{"id": ids[count], "messages": API.wall.get( {{"owner_id": ids[count], "count": 10, "filter": "owner"}} ) }});
                 count = count + 1;
             }}
             return response;
@@ -113,4 +116,5 @@ class VKApi:
                 print(requests.get(f"{self.BASE_URL}/{method}?v={self.API_VERSION}&access_token={token}",
                                                  params={"code": vk_code}).json())
             time.sleep(3)
+            count += 1
         return response

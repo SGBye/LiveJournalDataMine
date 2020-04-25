@@ -3,6 +3,7 @@ import string
 import peewee
 from nltk import word_tokenize, sent_tokenize
 # from playhouse.migrate import PostgresqlMigrator, migrate
+from playhouse.migrate import PostgresqlMigrator, migrate
 from playhouse.postgres_ext import ArrayField
 
 pg_db = peewee.PostgresqlDatabase('diplom_data', user='stas_test', password='12345',
@@ -26,15 +27,17 @@ class User(peewee.Model):
     source = peewee.CharField(max_length=100)
     sex = peewee.CharField(max_length=10, null=True)
     additional = peewee.TextField(null=True)
+    vk_id = peewee.IntegerField(null=True)
+    creation_ts = peewee.DateTimeField(null=True)
 
     class Meta:
         database = pg_db
 
 
 class Message(peewee.Model):
-    author = peewee.ForeignKeyField(User, backref='messages')
+    author = peewee.ForeignKeyField(User, backref='messages', on_delete='CASCADE')
     message = peewee.TextField()
-    link = peewee.TextField()
+    link = peewee.TextField(unique=True)
     date = peewee.TextField()
 
     class Meta:
@@ -77,6 +80,5 @@ pg_db.create_tables([User, Message])
 # migrator = PostgresqlMigrator(pg_db)
 #
 # migrate(
-#     migrator.add_column('user', 'sex', peewee.CharField(max_length=10, null=True)),
-#     migrator.add_column('user', 'additional', peewee.TextField(null=True)),
+#     migrator.add_column('user', 'creation_ts', peewee.DateTimeField(null=True)),
 # )

@@ -55,6 +55,7 @@ class LiveJournalUser(BaseUser):
         self.title = None
         self.subtitle = None
         self.picture = None
+        self.source = 'livejournal'
 
     def __str__(self):
         return f'Ник: {self.nick}, имя: {self.name}, дата рождения: {self.birthdate}'
@@ -160,7 +161,7 @@ class LiveJournalUser(BaseUser):
             # retries logic
             for attempt in range(MAX_RETRIES):
                 try:
-                    data = self.api.gather_connections(self.nick)
+                    data = self.api.gather_connections(self.nick).split('\n')
                 except requests.exceptions.RequestException:
                     time.sleep(1)
                     continue
@@ -219,4 +220,4 @@ class LiveJournalUser(BaseUser):
         if created:
             q = User.update(self.__dict__).where(User.nick == self.nick)
             q.execute()
-        return a_user
+        return User.get(nick=self.nick)
